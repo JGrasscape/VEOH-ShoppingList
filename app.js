@@ -5,16 +5,63 @@ const session = require('express-session');
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
+/*
 // Schema käyttäjälle, koostuu käyttäjän nimestä,
 // listasta ostoslistoja joka taaseen koostuu listasta itemeitä
 const user_schema = new Schema({
     name: { type: String, required: true },
     shoppingLists: [{
-        name: String,
+        name: { type: String, required: true },
         items: [{
-            name: String,
+            name: { type: String, required: true },
             count: Number
         }]
+    }]
+});
+const user_model = mongoose.model('user', user_schema);
+*/
+
+// Schema itemeille
+const item_schema = new Schema({
+    name: {
+        type: String,
+        req: true
+    },
+    count: {
+        type: Number,
+        req: true
+    },
+    img: {
+        type: String,
+        req: false
+    }
+});
+const item_model = mongoose.model('item', item_schema);
+
+// Schema ostoslistoille
+const sl_schema = new Schema({
+    name: {
+        type: String,
+        req: true
+    },
+    items: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'item',
+        req: true
+    }]
+});
+const sl_model = mongoose.model('shoppingList', sl_schema);
+
+// Schema käyttäjille
+const user_schema = new Schema({
+    name: {
+        type: String,
+        req: true
+    },
+    shoppingLists: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'shoppingList',
+        req: true
     }]
 });
 const user_model = mongoose.model('user', user_schema);
@@ -47,34 +94,57 @@ const is_logged_handler = (req, res, next) => {
     next();
 };
 
-
+// Haetaan käyttäjän tietokanta-objekti
+app.use((req, res, next) => {
+    if (!req.session.user) {
+        return next();
+    }
+    user_model.findById(req.session.user._id).then((user) => {
+        req.user = user;
+        next();
+    }).catch((err) => {
+        console.log(err);
+        res.redirect('/login');
+    });
+});
 
 // Pääsivu käyttäjälle, joka on kirjautunut sisään
 app.get('/', is_logged_handler, (req, res, next) => {
-    const user = req.session.user;
-    
-    // Haetaan  tietokannasta käyttäjän ostoslistat
+    const user = req.user;
+    console.log('käyttäjän', user.name, 'listat');
+    /*
     const shoppingLists = [];
     user_model.findOne({name: `${user.name}`}).exec(function (err, user_query){
         user_query.shoppingLists.forEach(element => shoppingLists.push(element));
         console.log(shoppingLists);
     });    
-
-    res.write(`
+*/
+    // Haetaan  tietokannasta käyttäjän ostoslistat
+    user.populate('shoppingLists').execPopulate().then(() => {
+        res.write(`
         <html>
         <body>
             <h1>ShoppingList</h1>
             <h2>Shoppinglists for user: ${user.name}</h2>`);
-    
-    console.log(shoppingLists);
-    shoppingLists.forEach(element => {
+
+        console.log(user.shoppingLists);
+        user.shoppingLists.forEach((sl) => {            
+            //res.write(sl.name);
+            res.write(`
+                <a href="./sl/${sl._id}">${sl.name}</a>               
+                <form action="delete_sl" method="POST">
+                    <input type="hidden" name="sl_id" value="${sl._id}">
+                    <button type="submit">Delete list</button>
+                </form>
+            `);
+        });
+
         res.write(`
-        ${element.name}<br>
-        `);
-        console.log(element.name);
-    });
-    
-    res.write(`
+            <hr/>
+            <form action="/add-sl" method="POST">
+                <input type="text" name="sl">
+                <button type="submit">Add a shoppinglist</button>
+            </form>
             <hr/>
             <form action="/logout" method="POST">
                 <button type="submit">Log out</button>
@@ -82,8 +152,9 @@ app.get('/', is_logged_handler, (req, res, next) => {
             <footer>&copy; Janne Ruohoniemi</footer>
         </body>
         </html>
-    `);
-    res.end();
+        `);        
+        res.end();
+    });
 });
 
 // Pääsivu käyttäjälle, joka ei ole kirjautunut sisään
@@ -114,6 +185,89 @@ app.get('/login', (req, res, next) => {
     res.end();
 });
 
+app.get('/sl/:id', (req, res, next) => {
+    const sl_id = req.params.id;
+    sl_model.findOne({
+        _id: sl_id
+    }).then((sl) => {
+        console.log('ostoslista löytyi')
+        sl.populate('items').execPopulate().then(() => {
+            res.write(`
+                <html>
+                <body>
+                    <h1>Shoppinglist: ${sl.name}</h1>
+                    <h2>Items:</h2>            
+            `);
+        
+            // Haetaan itemit kannasta
+            sl.items.forEach((item) => { 
+                console.log('item löytyi', item);
+                res.write(`
+                    ${item.name}<br/>
+                `);                                                
+            });        
+
+            res.write(`
+                    <hr/>
+                    <form action="/add-item/${sl._id}" method="POST">
+                        <input type="text" name="item" placeholder="item">
+                        <input type="number" name="count" placeholder="quantity">
+                        <button type="submit">Add an item</button>
+                    </form>
+                    <hr/>
+                    <footer>&copy; Janne Ruohoniemi</footer>
+                </body>
+                </html>
+            `); 
+
+            res.end();
+        });
+    });
+});
+
+app.post('/add-item/:id', (req, res, next) => {
+    const sl_id = req.params.id;
+    sl_model.findOne({
+        _id: sl_id
+    }).then((sl) => {
+        // Lista löytyi, luodaan item
+        console.log('ostoslista löytyi')
+        let new_item = item_model({
+            name: req.body.item,
+            count: req.body.count
+        });
+
+        new_item.save().then(() => {
+            console.log('item saved');
+            // Lisätään viittaus ostoslista-objektin item-listaan
+            sl.items.push(new_item);
+            sl.save().then(() => {
+                console.log('shoppinglist saved');
+                return res.redirect(`/sl/${sl._id}`);
+            });
+        });
+    });
+});
+
+app.post('/add-sl', (req, res, next) => {
+    const user = req.user;
+
+    let new_sl = sl_model({
+        name: req.body.sl,
+        items: []
+    });
+
+    new_sl.save().then(() => {
+        console.log('shoppinglist saved');
+        // Lisätään viittaus käyttäjäobjektin shoppinglists-listaan
+        user.shoppingLists.push(new_sl);
+        user.save().then(() => {
+            console.log('user saved');
+            return res.redirect('/');
+        });
+    });
+});
+
 // Kirjaudutaan sisään. Tutkitaan, löytyykö käyttäjä tietokannasta.
 app.post('/login', (req, res, next) => {
     const user_name = req.body.user_name;
@@ -141,6 +295,7 @@ app.post('/register', (req, res, next) => {
             return res.redirect('/login');
         }
 
+        /*
         let new_user = new user_model({
             name: user_name,
             shoppingLists: [{
@@ -150,6 +305,12 @@ app.post('/register', (req, res, next) => {
                     count: 1
                 }]
             }]
+        });
+        */
+
+        let new_user = new user_model({
+            name: user_name,
+            shoppingLists: []
         });
 
         new_user.save().then(() => {
