@@ -82,7 +82,7 @@ app.use(session({
 }));
 
 app.use((req, res, next) => {
-    console.log('PATH: ' + req.path);
+    console.log('PATH: ' + req.path + " METHOD: " + req.method);
     next();
 });
 
@@ -123,6 +123,10 @@ app.get('/', is_logged_handler, (req, res, next) => {
     user.populate('shoppingLists').execPopulate().then(() => {
         res.write(`
         <html>
+        <head><title>ShoppingList</title>
+        <meta http-equiv="Content-Type", content="text/html;charset=UTF-8">
+        <link rel="stylesheet" type="text/css" href="./css/style.css">
+        </head> 
         <body>
             <h1>ShoppingList</h1>
             <h2>Shoppinglists for user: ${user.name}</h2>`);
@@ -162,6 +166,10 @@ app.get('/login', (req, res, next) => {
     console.log('user:', req.session.user);
     res.write(`
         <html>
+        <head><title>ShoppingList</title>
+        <meta http-equiv="Content-Type", content="text/html;charset=UTF-8">
+        <link rel="stylesheet" type="text/css" href="./css/style.css">
+        </head>
         <body>
             <h1>ShoppingList</h1>
             Please login or register a new username.
@@ -194,6 +202,10 @@ app.get('/sl/:id', (req, res, next) => {
         sl.populate('items').execPopulate().then(() => {
             res.write(`
                 <html>
+                <head><title>ShoppingList</title>
+                <meta http-equiv="Content-Type", content="text/html;charset=UTF-8">
+                <link rel="stylesheet" type="text/css" href="./css/style.css">
+                </head> 
                 <body>
                     <h1>Shoppinglist: ${sl.name}</h1>
                     <h2>Items:</h2>            
@@ -203,7 +215,16 @@ app.get('/sl/:id', (req, res, next) => {
             sl.items.forEach((item) => { 
                 console.log('item löytyi', item);
                 res.write(`
-                    ${item.name}<br/>
+                    <table>
+                        <tr>
+                            <th>Item</th>
+                            <th>Count</th>
+                        </tr>
+                        <tr>
+                            <td>${item.name}</td>
+                            <td>${item.count}</td>
+                        </tr>
+                    </table>
                 `);                                                
             });        
 
@@ -268,6 +289,46 @@ app.post('/add-sl', (req, res, next) => {
     });
 });
 
+app.post('/delete_sl', (req, res, next) => {
+    const user = req.user;
+    const sl_id_to_delete = req.body.sl_id;
+
+    // Poistetaan shoppinglist käyttäjältä
+    console.log('Deleting sl from user.');
+    const updated_sl = user.shoppingLists.filter((sl_id) => {
+        return sl_id != sl_id_to_delete;
+    });
+    user.shoppingLists = updated_sl;
+
+    user.save().then(() => {
+        // Käyttäjä päivitetty, vittaus shoppinglistiin poistettu.
+        // Itse lista ja sen itemit ovat vielä olemassa kannassa.
+        // Haetaan itemit ja poistetaan.
+        console.log('Find and delete sl items.');
+        sl_model.findById(sl_id_to_delete).then((sl) => {
+            sl.populate('itmes').execPopulate().then(() => {
+                sl.items.forEach((item) => {
+                    console.log('Delete item id:', item._id);
+                    item_model.findByIdAndDelete(item._id).then(() => {
+                        console.log('Item delete ok.');
+                    });
+                });
+            });
+        });
+
+        // Lopuksi poistetaan shoppinglist
+        console.log('Deleting sl.');
+        sl_model.findByIdAndDelete(sl_id_to_delete).then(() => {
+            res.redirect('/');
+        });
+    });
+});
+
+app.post('/logout', (req, res, next) => {
+    req.session.destroy();
+    res.redirect('/login');
+});
+
 // Kirjaudutaan sisään. Tutkitaan, löytyykö käyttäjä tietokannasta.
 app.post('/login', (req, res, next) => {
     const user_name = req.body.user_name;
@@ -322,8 +383,15 @@ app.post('/register', (req, res, next) => {
 // Mikäli annettua sivua ei löydy
 app.use((req, res, next) => {
     console.log('404');
-    res.status(404);
-    res.send('404');
+    res.write(`
+        <html>
+        <head><title>ShoppingList - 404</title></head>
+        <body>
+            <h1>404 - page not found</h1>
+        </body>
+        </html>
+        `);
+    res.status(404);    
     res.end();
 });
 
