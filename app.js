@@ -46,6 +46,7 @@ const is_logged_handler = (req, res, next) => {
 // Auth
 app.use(auth_controller.handle_user);
 app.get('/login', auth_controller.get_login);
+app.post('/logout', auth_controller.post_logout);
 
 // Pääsivu käyttäjälle, joka on kirjautunut sisään
 app.get('/', is_logged_handler, (req, res, next) => {
@@ -289,11 +290,6 @@ app.post('/sl/delete_item', (req, res, next) => {
     });
 
     // TODO: Poista viittaus itemiin vielä shoppinglistiltä
-});
-
-app.post('/logout', (req, res, next) => {
-    req.session.destroy();
-    res.redirect('/login');
 });
 
 // Kirjaudutaan sisään. Tutkitaan, löytyykö käyttäjä tietokannasta.

@@ -1,6 +1,7 @@
 const user_model = require('../models/user_model');
 const auth_views = require('../views/auth_views');
 
+// Haetaan käyttäjän tietokantaobjekti
 const handle_user = (req, res, next) => {
     if (!req.session.user) {
         return next();
@@ -14,9 +15,17 @@ const handle_user = (req, res, next) => {
     });
 };
 
+// Login-näkymä, jos käyttäjä ei ole vielä kirjautunut sisään
 const get_login = (req, res, next) => {
     res.send(auth_views.login_view());
 };
 
+// Uloskirjautuminen
+const post_logout = (req, res, next) => {
+    req.session.destroy();
+    res.redirect('/login');
+};
+
 module.exports.handle_user = handle_user;
 module.exports.get_login = get_login;
+module.exports.post_logout = post_logout;
