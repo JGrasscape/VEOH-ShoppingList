@@ -4,12 +4,9 @@ const body_parser = require('body-parser');
 const session = require('express-session');
 const mongoose = require('mongoose');
 
-// Models
-const sl_model = require('./models/sl_model');
-const item_model = require('./models/item_model');
-
 // Controllers
 const auth_controller = require('./controllers/auth_controller');
+const sl_controller = require('./controllers/sl_controller');
 
 let app = express();
 
@@ -48,52 +45,8 @@ app.post('/logout', auth_controller.post_logout);
 app.post('/login', auth_controller.post_login);
 app.post('/register', auth_controller.post_register);
 
-// Pääsivu käyttäjälle, joka on kirjautunut sisään
-app.get('/', is_logged_handler, (req, res, next) => {
-    const user = req.user;
-    console.log('käyttäjän', user.name, 'listat');
-
-    // Haetaan  tietokannasta käyttäjän ostoslistat
-    user.populate('shoppingLists').execPopulate().then(() => {
-        res.write(`
-        <html>
-        <head><title>ShoppingList</title>
-        <meta http-equiv="Content-Type", content="text/html;charset=UTF-8">
-        <link rel="stylesheet" type="text/css" href="./css/style.css">
-        </head> 
-        <body>
-            <h1>ShoppingList</h1>
-            <h2>Shoppinglists for user: ${user.name}</h2>`);
-
-        console.log(user.shoppingLists);
-        user.shoppingLists.forEach((sl) => {            
-            //res.write(sl.name);
-            res.write(`
-                <a href="./sl/${sl._id}">${sl.name}</a>               
-                <form action="delete_sl" method="POST">
-                    <input type="hidden" name="sl_id" value="${sl._id}">
-                    <button type="submit">Delete list</button>
-                </form>
-            `);
-        });
-
-        res.write(`
-            <hr/>
-            <form action="/add-sl" method="POST">
-                <input type="text" name="sl">
-                <button type="submit">Add a shoppinglist</button>
-            </form>
-            <hr/>
-            <form action="/logout" method="POST">
-                <button type="submit">Log out</button>
-            </form>
-            <footer>&copy; Janne Ruohoniemi</footer>
-        </body>
-        </html>
-        `);        
-        res.end();
-    });
-});
+// Shoppinglists
+app.get('/', is_logged_handler, sl_controller.get_sls);
 
 app.get('/sl/:id', (req, res, next) => {
     const sl_id = req.params.id;
