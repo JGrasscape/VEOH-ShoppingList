@@ -10,6 +10,9 @@ const user_model = require('./models/user_model');
 const sl_model = require('./models/sl_model');
 const item_model = require('./models/item_model');
 
+// Controllers
+const auth_controller = require('./controllers/auth_controller');
+
 let app = express();
 
 app.use(body_parser.urlencoded({
@@ -102,36 +105,7 @@ app.get('/', is_logged_handler, (req, res, next) => {
 });
 
 // Pääsivu käyttäjälle, joka ei ole kirjautunut sisään
-app.get('/login', (req, res, next) => {
-    console.log('user:', req.session.user);
-    res.write(`
-        <html>
-        <head><title>ShoppingList</title>
-        <meta http-equiv="Content-Type", content="text/html;charset=UTF-8">
-        <link rel="stylesheet" type="text/css" href="./css/style.css">
-        </head>
-        <body>
-            <h1>ShoppingList</h1>
-            Please login or register a new username.
-
-            <form action="/login" method="POST">
-                <h2>Existing users:</h2>
-                <input type="text" name="user_name" placeholder="Username">
-                <button type="submit">Log in</button>
-            </form>
-            <hr/>
-            <form action="/register" method="POST">
-                <h2>New users:</h2>
-                <input type="text" name="user_name" placeholder="Username">
-                <button type="submit">Register</button>
-            </form>
-            <hr/>
-            <footer>&copy; Janne Ruohoniemi</footer>
-        </body>
-        </html>
-    `);
-    res.end();
-});
+app.get('/login', auth_controller.get_login);
 
 app.get('/sl/:id', (req, res, next) => {
     const sl_id = req.params.id;
