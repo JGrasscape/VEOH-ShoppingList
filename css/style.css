@@ -2,6 +2,28 @@ table, th, td {
     border: 1px solid black;
 }
 
-h1 {
-    color: red;
+td {
+    width: 100px;    
+    text-align: center;
+}
+
+form {
+    display: inline-block;
+}
+
+h1, h2 {
+    color: midnightblue;
+}
+
+footer {
+    background-color: cornflowerblue;
+    text-align: center;        
+}
+
+hr {
+    border-top: 1px dashed blue;
+}
+
+body {
+    background-color: lightblue;
 }

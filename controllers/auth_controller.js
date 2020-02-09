@@ -49,7 +49,6 @@ const post_register = (req, res, next) => {
         name: user_name
     }).then((user) => {
         if (user) {
-            console.log('User name already registered');
             return res.redirect('/login');
         }
 

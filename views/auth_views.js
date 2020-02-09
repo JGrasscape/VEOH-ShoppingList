@@ -7,8 +7,7 @@ const login_view = () => {
         </head>
         <body>
             <h1>ShoppingList</h1>
-            Please login or register a new username.
-
+            Please login or register a new username.<br/>
             <form action="/login" method="POST">
                 <h2>Existing users:</h2>
                 <input type="text" name="user_name" placeholder="Username">
