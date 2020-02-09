@@ -5,50 +5,10 @@ const session = require('express-session');
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
-// Schema itemeille
-const item_schema = new Schema({
-    name: {
-        type: String,
-        req: true
-    },
-    count: {
-        type: Number,
-        req: true
-    },
-    img: {
-        type: String,
-        req: false
-    }
-});
-const item_model = mongoose.model('item', item_schema);
-
-// Schema ostoslistoille
-const sl_schema = new Schema({
-    name: {
-        type: String,
-        req: true
-    },
-    items: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'item',
-        req: true
-    }]
-});
-const sl_model = mongoose.model('shoppingList', sl_schema);
-
-// Schema käyttäjille
-const user_schema = new Schema({
-    name: {
-        type: String,
-        req: true
-    },
-    shoppingLists: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'shoppingList',
-        req: true
-    }]
-});
-const user_model = mongoose.model('user', user_schema);
+// Models
+const user_model = require('./models/user_model');
+const sl_model = require('./models/sl_model');
+const item_model = require('./models/item_model');
 
 let app = express();
 
