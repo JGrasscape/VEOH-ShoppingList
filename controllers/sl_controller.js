@@ -18,4 +18,22 @@ const get_sls = (req, res, next) => {
     });
 };
 
+const get_sl = (req, res, next) => {
+    const sl_id = req.params.id;
+    sl_model.findOne({
+        _id: sl_id
+    }).then((sl) => {
+        sl.populate('items').execPopulate().then(() => {
+            let data = {
+                sl_name: sl.name,
+                items: sl.items,
+                sl_id: sl._id
+            };
+            let html = sl_views.sl_view(data);
+            res.send(html);
+        });
+    });
+};
+
 module.exports.get_sls = get_sls;
+module.exports.get_sl = get_sl;
