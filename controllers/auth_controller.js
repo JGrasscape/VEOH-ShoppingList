@@ -26,6 +26,46 @@ const post_logout = (req, res, next) => {
     res.redirect('/login');
 };
 
+// Kirjaudutaan sisään. Tutkitaan, löytyykö käyttäjä tietokannasta.
+const post_login = (req, res, next) => {
+    const user_name = req.body.user_name;
+    // Etsitään käyttäjää MongoDB:stä
+    user_model.findOne({
+        name: user_name
+    }).then((user) => {
+        if (user) {
+            req.session.user = user;
+            return res.redirect('/');
+        }
+        res.redirect('/login');
+    });
+};
+
+// Rekisteröidään uusi käyttäjä, mikäli tätä ei ole ennestään tietokannassa.
+const post_register = (req, res, next) => {
+    const user_name = req.body.user_name;
+    // Etsitään käyttäjää MongoDB:stä
+    user_model.findOne({
+        name: user_name
+    }).then((user) => {
+        if (user) {
+            console.log('User name already registered');
+            return res.redirect('/login');
+        }
+
+        let new_user = new user_model({
+            name: user_name,
+            shoppingLists: []
+        });
+
+        new_user.save().then(() => {
+            return res.redirect('/login');
+        });
+    });
+};
+
 module.exports.handle_user = handle_user;
 module.exports.get_login = get_login;
 module.exports.post_logout = post_logout;
+module.exports.post_login = post_login;
+module.exports.post_register = post_register;

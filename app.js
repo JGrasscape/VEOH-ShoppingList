@@ -3,10 +3,8 @@ const PORT = process.env.PORT || 8080;
 const body_parser = require('body-parser');
 const session = require('express-session');
 const mongoose = require('mongoose');
-const Schema = mongoose.Schema;
 
 // Models
-const user_model = require('./models/user_model');
 const sl_model = require('./models/sl_model');
 const item_model = require('./models/item_model');
 
@@ -47,6 +45,8 @@ const is_logged_handler = (req, res, next) => {
 app.use(auth_controller.handle_user);
 app.get('/login', auth_controller.get_login);
 app.post('/logout', auth_controller.post_logout);
+app.post('/login', auth_controller.post_login);
+app.post('/register', auth_controller.post_register);
 
 // Pääsivu käyttäjälle, joka on kirjautunut sisään
 app.get('/', is_logged_handler, (req, res, next) => {
@@ -290,57 +290,6 @@ app.post('/sl/delete_item', (req, res, next) => {
     });
 
     // TODO: Poista viittaus itemiin vielä shoppinglistiltä
-});
-
-// Kirjaudutaan sisään. Tutkitaan, löytyykö käyttäjä tietokannasta.
-app.post('/login', (req, res, next) => {
-    const user_name = req.body.user_name;
-    // Etsitään käyttäjää MongoDB:stä
-    user_model.findOne({
-        name: user_name
-    }).then((user) => {
-        if (user) {
-            req.session.user = user;
-            return res.redirect('/');
-        }
-        res.redirect('/login');
-    });
-});
-
-// Rekisteröidään uusi käyttäjä, mikäli tätä ei ole ennestään tietokannassa.
-app.post('/register', (req, res, next) => {
-    const user_name = req.body.user_name;
-    // Etsitään käyttäjää MongoDB:stä
-    user_model.findOne({
-        name: user_name
-    }).then((user) => {
-        if (user) {
-            console.log('User name already registered');
-            return res.redirect('/login');
-        }
-
-        /*
-        let new_user = new user_model({
-            name: user_name,
-            shoppingLists: [{
-                name: 'Testilista',
-                items: [{
-                    name: 'Testi item',
-                    count: 1
-                }]
-            }]
-        });
-        */
-
-        let new_user = new user_model({
-            name: user_name,
-            shoppingLists: []
-        });
-
-        new_user.save().then(() => {
-            return res.redirect('/login');
-        });
-    });
 });
 
 // Mikäli annettua sivua ei löydy
