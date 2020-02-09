@@ -43,19 +43,9 @@ const is_logged_handler = (req, res, next) => {
     next();
 };
 
-// Haetaan käyttäjän tietokanta-objekti
-app.use((req, res, next) => {
-    if (!req.session.user) {
-        return next();
-    }
-    user_model.findById(req.session.user._id).then((user) => {
-        req.user = user;
-        next();
-    }).catch((err) => {
-        console.log(err);
-        res.redirect('/login');
-    });
-});
+// Auth
+app.use(auth_controller.handle_user);
+app.get('/login', auth_controller.get_login);
 
 // Pääsivu käyttäjälle, joka on kirjautunut sisään
 app.get('/', is_logged_handler, (req, res, next) => {
@@ -103,9 +93,6 @@ app.get('/', is_logged_handler, (req, res, next) => {
         res.end();
     });
 });
-
-// Pääsivu käyttäjälle, joka ei ole kirjautunut sisään
-app.get('/login', auth_controller.get_login);
 
 app.get('/sl/:id', (req, res, next) => {
     const sl_id = req.params.id;
