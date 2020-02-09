@@ -5,22 +5,6 @@ const session = require('express-session');
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
-/*
-// Schema käyttäjälle, koostuu käyttäjän nimestä,
-// listasta ostoslistoja joka taaseen koostuu listasta itemeitä
-const user_schema = new Schema({
-    name: { type: String, required: true },
-    shoppingLists: [{
-        name: { type: String, required: true },
-        items: [{
-            name: { type: String, required: true },
-            count: Number
-        }]
-    }]
-});
-const user_model = mongoose.model('user', user_schema);
-*/
-
 // Schema itemeille
 const item_schema = new Schema({
     name: {
@@ -81,6 +65,8 @@ app.use(session({
     }
 }));
 
+app.use('/css', express.static('css'))
+
 app.use((req, res, next) => {
     console.log('PATH: ' + req.path + " METHOD: " + req.method);
     next();
@@ -112,13 +98,7 @@ app.use((req, res, next) => {
 app.get('/', is_logged_handler, (req, res, next) => {
     const user = req.user;
     console.log('käyttäjän', user.name, 'listat');
-    /*
-    const shoppingLists = [];
-    user_model.findOne({name: `${user.name}`}).exec(function (err, user_query){
-        user_query.shoppingLists.forEach(element => shoppingLists.push(element));
-        console.log(shoppingLists);
-    });    
-*/
+
     // Haetaan  tietokannasta käyttäjän ostoslistat
     user.populate('shoppingLists').execPopulate().then(() => {
         res.write(`
@@ -204,35 +184,58 @@ app.get('/sl/:id', (req, res, next) => {
                 <html>
                 <head><title>ShoppingList</title>
                 <meta http-equiv="Content-Type", content="text/html;charset=UTF-8">
-                <link rel="stylesheet" type="text/css" href="./css/style.css">
+                <link rel="stylesheet" type="text/css" href="../css/style.css">
                 </head> 
                 <body>
                     <h1>Shoppinglist: ${sl.name}</h1>
-                    <h2>Items:</h2>            
+                    <h2>Items:</h2>
+                    <table>
+                        <tr>
+                            <th>Item</th>
+                            <th>Count</th>
+                            <th>Img</th>
+                            <th/>
+                        </tr>            
             `);
         
             // Haetaan itemit kannasta
             sl.items.forEach((item) => { 
                 console.log('item löytyi', item);
-                res.write(`
-                    <table>
-                        <tr>
-                            <th>Item</th>
-                            <th>Count</th>
-                        </tr>
+                res.write(`                    
                         <tr>
                             <td>${item.name}</td>
-                            <td>${item.count}</td>
-                        </tr>
-                    </table>
+                            <td>
+                                ${item.count}
+                                <form action="plus_item" method="POST">
+                                    <input type="hidden" name="item_id" value="${item._id}">
+                                    <input type="hidden" name="sl_id" value="${sl._id}">
+                                    <button type="submit">+</button>
+                                </form>
+                                <form action="minus_item" method="POST">
+                                    <input type="hidden" name="item_id" value="${item._id}">
+                                    <input type="hidden" name="sl_id" value="${sl._id}">
+                                    <button type="submit">-</button>
+                                </form>
+                            </td>
+                            <td><img src="${item.img}" width=100px heigth=100px alt="Image"/></td>
+                            <td>
+                                <form action="delete_item" method="POST">
+                                    <input type="hidden" name="item_id" value="${item._id}">
+                                    <input type="hidden" name="sl_id" value="${sl._id}">
+                                    <button type="submit">Delete item</button>
+                                </form>
+                            </td>
+                        </tr>                    
                 `);                                                
             });        
 
             res.write(`
+                    </table>
                     <hr/>
                     <form action="/add-item/${sl._id}" method="POST">
                         <input type="text" name="item" placeholder="item">
                         <input type="number" name="count" placeholder="quantity">
+                        <input type="text" name="img" placeholder="img URL">
                         <button type="submit">Add an item</button>
                     </form>
                     <hr/>
@@ -246,6 +249,35 @@ app.get('/sl/:id', (req, res, next) => {
     });
 });
 
+app.post('/sl/plus_item', (req, res, next) => {
+    const item_id = req.body.item_id;
+    const sl_id = req.body.sl_id;
+
+    item_model.findById(item_id).then((item) => {
+        console.log('Adding count to item', item.name);
+        item.count += 1;
+        item.save().then(() => {
+            return res.redirect(`/sl/${sl_id}`);
+        });
+    });
+});
+
+app.post('/sl/minus_item', (req, res, next) => {
+    const item_id = req.body.item_id;
+    const sl_id = req.body.sl_id;
+
+    item_model.findById(item_id).then((item) => {
+        console.log('Minus to item', item.name);
+        item.count -= 1;
+        if (item.count < 0) {
+            item.count = 0;
+        }
+        item.save().then(() => {
+            return res.redirect(`/sl/${sl_id}`);
+        });
+    });
+});
+
 app.post('/add-item/:id', (req, res, next) => {
     const sl_id = req.params.id;
     sl_model.findOne({
@@ -255,7 +287,8 @@ app.post('/add-item/:id', (req, res, next) => {
         console.log('ostoslista löytyi')
         let new_item = item_model({
             name: req.body.item,
-            count: req.body.count
+            count: req.body.count,
+            img: req.body.img
         });
 
         new_item.save().then(() => {
@@ -322,6 +355,19 @@ app.post('/delete_sl', (req, res, next) => {
             res.redirect('/');
         });
     });
+});
+
+app.post('/sl/delete_item', (req, res, next) => {
+    const user = req.user;
+    const item_id_to_delete = req.body.item_id;
+    const sl_id = req.body.sl_id;
+
+    console.log('Deleting item ', item_id_to_delete);
+    item_model.findByIdAndDelete(item_id_to_delete).then(() => {
+        res.redirect(`/sl/${sl_id}`);
+    });
+
+    // TODO: Poista viittaus itemiin vielä shoppinglistiltä
 });
 
 app.post('/logout', (req, res, next) => {
